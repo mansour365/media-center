@@ -271,7 +271,6 @@
   }
   #sound-toggle.on { color: #9cc6ff; }
 
-  /* Status toast for feedback while we're still wiring things up */
   #toast {
     position: fixed;
     bottom: 110px; left: 50%;
@@ -321,7 +320,7 @@
 </div>
 
 <div id="pager"></div>
-<div id="hint">Scroll or ↑ ↓ to navigate items · ← → to switch categories · Enter to select</div>
+<div id="hint">Scroll or ↑ ↓ to navigate items · ← → to switch categories · Enter to select · Esc for fullscreen</div>
 <div id="toast"></div>
 
 <script>
@@ -442,8 +441,7 @@ soundToggle.addEventListener('click', () => {
 syncSoundToggle();
 
 /* ═════════════════════════════════════════
-   Toast — feedback for actions while we're
-   still wiring up the real behavior.
+   Toast
    ═════════════════════════════════════════ */
 const toastEl = document.getElementById('toast');
 let toastTimer = null;
@@ -552,8 +550,7 @@ const DATA = {
   }
 };
 
-/* Selected video folder + scanned videos.
-   Populated by the Electron main process. */
+/* Selected video folder + scanned videos */
 let selectedVideoFolder = null;
 let scannedVideos = [];
 
@@ -767,15 +764,12 @@ function updateItemSelection() {
 }
 
 /* ═════════════════════════════════════════
-   Directory picker — now goes through the
-   Electron main process, which returns real
-   absolute paths instead of Blob references.
+   Directory picker
    ═════════════════════════════════════════ */
 async function pickVideoDirectory() {
   if (window.electronAPI && typeof window.electronAPI.pickDirectory === 'function') {
-    return await window.electronAPI.pickDirectory();  /* { name, path } or null */
+    return await window.electronAPI.pickDirectory();
   }
-  /* Fallback for plain-browser development only. */
   if (typeof window.showDirectoryPicker === 'function') {
     try {
       const handle = await window.showDirectoryPicker({ mode: 'read' });
@@ -793,7 +787,6 @@ async function handleDirectoryPick() {
 
   selectedVideoFolder = result;
 
-  /* Update the Directory label with the folder name */
   const dirItem = DATA.Video.items.find(it => it.id === 'directory');
   if (dirItem) {
     dirItem.label = `Directory · ${result.name}`;
@@ -803,7 +796,6 @@ async function handleDirectoryPick() {
     positionItems(false);
   }
 
-  /* Scan the folder for videos via the main process */
   showToast(`Scanning ${result.name}\u2026`, 4000);
   try {
     const files = await window.electronAPI.scanVideos(result.path);
@@ -827,13 +819,11 @@ function activateSelectedItem() {
 
   playConfirmSound();
 
-  /* Directory picker */
   if (item.id === 'directory') {
     handleDirectoryPick();
     return;
   }
 
-  /* Placeholder for other rows — real behavior comes later. */
   showToast(`${cat} · ${item.label}`);
 }
 
@@ -913,12 +903,15 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === 'ArrowRight') next();
 });
 
-/* F11 toggles fullscreen — handy during development */
+/* Esc toggles native fullscreen via Electron */
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'F11') {
+  if (e.key === 'Escape') {
     e.preventDefault();
-    if (document.fullscreenElement) document.exitFullscreen();
-    else document.documentElement.requestFullscreen();
+    if (window.electronAPI && window.electronAPI.toggleFullscreen) {
+      window.electronAPI.toggleFullscreen();
+    } else {
+      console.warn('Escape pressed but electronAPI.toggleFullscreen is missing');
+    }
   }
 });
 

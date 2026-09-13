@@ -26,33 +26,24 @@ function createWindow() {
   });
 }
 
-/* ─────────────────────────────────────────
-   IPC: native folder picker
-   Returns { name, path } or null if cancelled.
-   ───────────────────────────────────────── */
+/* ── IPC: native folder picker ── */
 ipcMain.handle('pick-directory', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     title: 'Select video folder',
     properties: ['openDirectory']
   });
-
   if (result.canceled || !result.filePaths.length) return null;
-
   const p = result.filePaths[0];
   const name = path.basename(p) || p;
   return { name, path: p };
 });
 
-/* ─────────────────────────────────────────
-   IPC: scan a folder recursively for video files.
-   Returns an array of { name, path }.
-   ───────────────────────────────────────── */
+/* ── IPC: scan a folder recursively for video files ── */
 ipcMain.handle('scan-videos', async (_evt, folderPath) => {
   const exts = new Set([
     '.mp4', '.mkv', '.avi', '.mov', '.webm', '.m4v',
     '.wmv', '.flv', '.mpg', '.mpeg', '.ts', '.m2ts'
   ]);
-
   const out = [];
 
   function walk(dir) {
@@ -70,28 +61,30 @@ ipcMain.handle('scan-videos', async (_evt, folderPath) => {
       } else if (entry.isFile()) {
         const ext = path.extname(entry.name).toLowerCase();
         if (exts.has(ext)) {
-          out.push({
-            name: path.basename(entry.name, ext),
-            path: full
-          });
+          out.push({ name: path.basename(entry.name, ext), path: full });
         }
       }
     }
   }
-
   walk(folderPath);
   return out;
 });
 
-/* ─────────────────────────────────────────
-   IPC: play a video.
-   For now: hand off to the OS default player.
-   Later we can swap this for embedded VLC playback.
-   ───────────────────────────────────────── */
+/* ── IPC: play a video with the OS default player ── */
 ipcMain.handle('play-video', async (_evt, filePath) => {
   const err = await shell.openPath(filePath);
   if (err) console.error('play-video failed:', err);
   return { ok: !err, error: err || null };
+});
+
+/* ── IPC: toggle native fullscreen ── */
+ipcMain.handle('toggle-fullscreen', () => {
+  if (!mainWindow) return false;
+  const current = mainWindow.isFullScreen();
+  const next = !current;
+  mainWindow.setFullScreen(next);
+  console.log('[toggle-fullscreen] was =', current, '→ now =', next);
+  return next;
 });
 
 app.whenReady().then(createWindow);
