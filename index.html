@@ -1077,13 +1077,32 @@ const SPARKLE_LIFE_MAX = 2.0;
 const WIND_Y_ELIGIBLE_FRACTION = 0.40;
 const WIND_Y_STRENGTH_MULT = 0.60;
 
+/* Fraction of sparkles that spawn outside the ribbon body.
+   Split evenly between above and below the ribbon. */
+const OUTSIDE_BAND_FRACTION = 0.30;
+const OUTSIDE_BAND_DIST = 55;   // max px outside the ribbon edge
+
 function spawnSparkle(t) {
   if (sparkles.length >= MAX_SPARKLES) return;
 
   const w = WAVES[(Math.random() * WAVES.length) | 0];
   const x = Math.random() * W;
-  const bias = Math.pow(Math.random(), 1.6);
-  const y = waveY(w, x, t) + bias * w.thickness * thicknessMult(w, x, t) * 0.55;
+  const thick = w.thickness * thicknessMult(w, x, t);
+  const topY = waveY(w, x, t);
+
+  let y;
+  const roll = Math.random();
+  if (roll < OUTSIDE_BAND_FRACTION / 2) {
+    /* Above the ribbon — offset upward from the crest */
+    y = topY - 6 - Math.random() * OUTSIDE_BAND_DIST;
+  } else if (roll < OUTSIDE_BAND_FRACTION) {
+    /* Below the ribbon — offset downward from the bottom edge */
+    y = topY + thick + 6 + Math.random() * OUTSIDE_BAND_DIST;
+  } else {
+    /* Inside the ribbon (existing behavior) */
+    const bias = Math.pow(Math.random(), 1.6);
+    y = topY + bias * thick * 0.55;
+  }
 
   const u = Math.pow(Math.random(), 4.0);
   const size = SPARKLE_SIZE_MIN + u * (SPARKLE_SIZE_MAX - SPARKLE_SIZE_MIN);
