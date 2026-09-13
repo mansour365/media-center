@@ -1,0 +1,297 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  color: #fff;
+  user-select: none;
+  cursor: default;
+}
+
+#wave {
+  position: fixed; inset: 0;
+  width: 100%; height: 100%;
+  z-index: 0;
+  display: block;
+}
+
+#vignette {
+  position: fixed; inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, transparent 0%, rgba(0,0,0,0.7) 100%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* ── Clock ───────────────────────────── */
+#clock {
+  position: fixed;
+  top: 3vh; right: 3vw;
+  text-align: right;
+  z-index: 20;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.9);
+}
+#clock .time {
+  font-size: 4.0vh;
+  line-height: 1.05;
+  font-weight: 300;
+  letter-spacing: 1px;
+}
+#clock .date {
+  font-size: 2.1vh;
+  line-height: 1.05;
+  color: #93a6b8;
+  margin-top: 0.3vh;
+  letter-spacing: 0.6px;
+}
+
+/* ── Stage ───────────────────────────── */
+#stage {
+  position: fixed; inset: 0;
+  z-index: 5;
+  overflow: hidden;
+}
+
+/* ── Items wrapper (mask hides the bar band) ── */
+#items-wrapper {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 5;
+  -webkit-mask-image: linear-gradient(to bottom,
+    #000 0,
+    #000 calc(25% - 16px),
+    transparent calc(25% - 12px),
+    transparent calc(25% + 87px),
+    #000 calc(25% + 91px),
+    #000 100%);
+        mask-image: linear-gradient(to bottom,
+    #000 0,
+    #000 calc(25% - 16px),
+    transparent calc(25% - 12px),
+    transparent calc(25% + 87px),
+    #000 calc(25% + 91px),
+    #000 100%);
+}
+
+#items {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+/* ── Category bar ────────────────────── */
+#category-viewport {
+  position: absolute;
+  top: 25%;
+  left: 0;
+  width: 100%;
+  height: 120px;
+  overflow: hidden;
+  z-index: 10;
+}
+#category-row {
+  position: absolute;
+  top: 0; left: 0;
+  display: flex;
+  align-items: flex-start;
+  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+.category {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 170px;
+  flex: 0 0 170px;
+  cursor: pointer;
+  transition: transform 0.35s ease;
+}
+.category .cat-icon {
+  width: 56px; height: 56px;
+  color: #46586a;
+  transition: color 0.35s ease, transform 0.35s ease, filter 0.35s ease;
+  transform-origin: center center;
+}
+.category .cat-label {
+  margin-top: 13px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: #46586a;
+  transition: color 0.35s ease, text-shadow 0.35s ease;
+}
+
+.category.active .cat-icon {
+  color: #fff;
+  transform: scale(1.14);
+  filter: drop-shadow(0 0 16px rgba(130,190,255,0.75));
+}
+.category.active .cat-label {
+  color: #fff;
+  text-shadow: 0 0 14px rgba(130,190,255,0.7);
+}
+.category:not(.active):hover .cat-icon { color: #6f8497; }
+.category:not(.active):hover .cat-label { color: #6f8497; }
+
+/* ── Vertical items ──────────────────── */
+.item {
+  margin-left: calc(30% - 52px);
+  padding: 12px 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  opacity: 0;
+  animation: itemIn 0.35s ease forwards;
+  transition: background 0.25s ease;
+}
+@keyframes itemIn {
+  to { opacity: 1; }
+}
+.item.near-bar {
+  padding: 34px 24px;
+}
+.item.selected.near-bar {
+  padding: 56px 24px 48px;
+}
+.item .item-icon {
+  width: 56px; height: 56px;
+  flex: 0 0 56px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.06);
+  color: #c2d3e0;
+  transition: background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+}
+.item .item-label {
+  font-size: 20px;
+  color: #a6b6c4;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  transition: color 0.25s ease, font-size 0.25s ease, text-shadow 0.25s ease;
+}
+
+.item:hover {
+  background: rgba(130,190,255,0.12);
+}
+.item:hover .item-icon {
+  background: rgba(130,190,255,0.3);
+  color: #fff;
+  box-shadow: 0 0 20px rgba(130,190,255,0.55);
+}
+.item:hover .item-label {
+  color: #fff;
+  font-size: 21px;
+}
+
+.item.selected .item-label {
+  color: #fff;
+  font-size: 21px;
+  text-shadow:
+    0 0 12px rgba(160,215,255,0.95),
+    0 0 26px rgba(160,215,255,0.55);
+}
+
+.item.pressed {
+  background: rgba(130,190,255,0.25);
+}
+
+/* ── Hint + pager ────────────────────── */
+#hint {
+  position: fixed;
+  bottom: 26px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #4a5a6a;
+  z-index: 20;
+  text-align: center;
+  line-height: 1.6;
+}
+
+#pager {
+  position: fixed;
+  bottom: 62px; left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 20;
+}
+#pager .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #2c3a4a;
+  transition: background 0.35s ease, transform 0.35s ease, box-shadow 0.35s ease;
+}
+#pager .dot.active {
+  background: #9cc6ff;
+  transform: scale(1.4);
+  box-shadow: 0 0 10px rgba(130,190,255,0.8);
+}
+
+/* ── Sound toggle ────────────────────── */
+#sound-toggle {
+  position: fixed;
+  top: 30px; left: 44px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: #4a5a6a;
+  cursor: pointer;
+  transition: color 0.25s ease;
+  user-select: none;
+}
+#sound-toggle:hover { color: #9cc6ff; }
+#sound-toggle .led {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #2c3a4a;
+  transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+#sound-toggle.on .led {
+  background: #9cc6ff;
+  box-shadow: 0 0 10px rgba(130,190,255,0.85);
+}
+#sound-toggle.on { color: #9cc6ff; }
+
+/* ── Toast ───────────────────────────── */
+#toast {
+  position: fixed;
+  bottom: 110px; left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  padding: 10px 18px;
+  background: rgba(20, 30, 48, 0.92);
+  border: 1px solid rgba(130,190,255,0.35);
+  border-radius: 8px;
+  font-size: 13px;
+  letter-spacing: 0.4px;
+  color: #cfe3ff;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 30;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  max-width: 60vw;
+  text-align: center;
+}
+#toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
