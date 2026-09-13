@@ -270,6 +270,30 @@
     box-shadow: 0 0 10px rgba(130,190,255,0.85);
   }
   #sound-toggle.on { color: #9cc6ff; }
+
+  /* Status toast for feedback while we're still wiring things up */
+  #toast {
+    position: fixed;
+    bottom: 110px; left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    padding: 10px 18px;
+    background: rgba(20, 30, 48, 0.92);
+    border: 1px solid rgba(130,190,255,0.35);
+    border-radius: 8px;
+    font-size: 13px;
+    letter-spacing: 0.4px;
+    color: #cfe3ff;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 30;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    max-width: 60vw;
+    text-align: center;
+  }
+  #toast.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 </style>
 </head>
 <body>
@@ -298,6 +322,7 @@
 
 <div id="pager"></div>
 <div id="hint">Scroll or ↑ ↓ to navigate items · ← → to switch categories · Enter to select</div>
+<div id="toast"></div>
 
 <script>
 /* ═════════════════════════════════════════
@@ -417,6 +442,22 @@ soundToggle.addEventListener('click', () => {
 syncSoundToggle();
 
 /* ═════════════════════════════════════════
+   Toast — feedback for actions while we're
+   still wiring up the real behavior.
+   ═════════════════════════════════════════ */
+const toastEl = document.getElementById('toast');
+let toastTimer = null;
+
+function showToast(msg, ms = 2200) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toastEl.classList.remove('visible');
+  }, ms);
+}
+
+/* ═════════════════════════════════════════
    Icons
    ═════════════════════════════════════════ */
 const ICONS = {
@@ -451,7 +492,7 @@ const DATA = {
   Video: {
     icon: ICONS.video,
     items: [
-      { label: 'Directory',      icon: 'folder' },
+      { id: 'directory', label: 'Directory', icon: 'folder' },
       { label: 'TV Shows',       icon: 'list'   },
       { label: 'Playlists',      icon: 'folder' },
       { label: 'Streaming',      icon: 'globe'  },
@@ -510,6 +551,11 @@ const DATA = {
     ]
   }
 };
+
+/* Selected video folder + scanned videos.
+   Populated by the Electron main process. */
+let selectedVideoFolder = null;
+let scannedVideos = [];
 
 /* ═════════════════════════════════════════
    Wind fields
@@ -720,12 +766,59 @@ function updateItemSelection() {
   });
 }
 
-/* Activate the currently-selected vertical item.
-   This is the shared action used by both:
-     - Enter on the keyboard
-     - Clicking the already-selected item with the mouse
-   In the future, this is where real playback / navigation
-   would kick off. */
+/* ═════════════════════════════════════════
+   Directory picker — now goes through the
+   Electron main process, which returns real
+   absolute paths instead of Blob references.
+   ═════════════════════════════════════════ */
+async function pickVideoDirectory() {
+  if (window.electronAPI && typeof window.electronAPI.pickDirectory === 'function') {
+    return await window.electronAPI.pickDirectory();  /* { name, path } or null */
+  }
+  /* Fallback for plain-browser development only. */
+  if (typeof window.showDirectoryPicker === 'function') {
+    try {
+      const handle = await window.showDirectoryPicker({ mode: 'read' });
+      return { name: handle.name, path: handle.name };
+    } catch (err) {
+      if (err && err.name === 'AbortError') return null;
+    }
+  }
+  return null;
+}
+
+async function handleDirectoryPick() {
+  const result = await pickVideoDirectory();
+  if (!result) return;
+
+  selectedVideoFolder = result;
+
+  /* Update the Directory label with the folder name */
+  const dirItem = DATA.Video.items.find(it => it.id === 'directory');
+  if (dirItem) {
+    dirItem.label = `Directory · ${result.name}`;
+  }
+  if (cats[activeIdx] === 'Video') {
+    renderItems('Video');
+    positionItems(false);
+  }
+
+  /* Scan the folder for videos via the main process */
+  showToast(`Scanning ${result.name}\u2026`, 4000);
+  try {
+    const files = await window.electronAPI.scanVideos(result.path);
+    scannedVideos = files || [];
+    showToast(`Found ${scannedVideos.length} video${scannedVideos.length === 1 ? '' : 's'} in ${result.name}`, 3500);
+    console.log('Scanned videos:', scannedVideos);
+  } catch (err) {
+    console.error('scan-videos failed:', err);
+    showToast('Failed to scan folder', 3000);
+  }
+}
+
+/* ═════════════════════════════════════════
+   Activate the currently-selected vertical item
+   ═════════════════════════════════════════ */
 function activateSelectedItem() {
   const cat = cats[activeIdx];
   const sel = selectedItemIdx[cat] || 0;
@@ -734,10 +827,14 @@ function activateSelectedItem() {
 
   playConfirmSound();
 
-  /* Hook here for real actions later, e.g.:
-     openDirectory(item.label);
-     launchMedia(item.label);
-     etc. */
+  /* Directory picker */
+  if (item.id === 'directory') {
+    handleDirectoryPick();
+    return;
+  }
+
+  /* Placeholder for other rows — real behavior comes later. */
+  showToast(`${cat} · ${item.label}`);
 }
 
 function renderItems(name) {
@@ -761,11 +858,9 @@ function renderItems(name) {
     el.addEventListener('click', () => {
       const cat = cats[activeIdx];
       if (selectedItemIdx[cat] === i) {
-        /* Already-selected item: same action as Enter */
         activateSelectedItem();
         return;
       }
-      /* Clicking a non-selected item: select it, then confirm */
       const direction = i > selectedItemIdx[cat] ? -1 : 1;
       applyWindImpulseY(direction);
       selectedItemIdx[cat] = i;
@@ -798,7 +893,6 @@ const KEY_COOLDOWN_MS = 180;
 let lastKeyTime = 0;
 
 window.addEventListener('keydown', (e) => {
-  /* Enter → activate the currently-selected vertical item */
   if (e.key === 'Enter') {
     e.preventDefault();
     activateSelectedItem();
@@ -817,6 +911,15 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === 'ArrowDown') nextItem();
   else if (e.key === 'ArrowLeft') prev();
   else if (e.key === 'ArrowRight') next();
+});
+
+/* F11 toggles fullscreen — handy during development */
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'F11') {
+    e.preventDefault();
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen();
+  }
 });
 
 function unlockAudio() {
