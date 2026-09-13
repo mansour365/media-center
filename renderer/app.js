@@ -141,6 +141,8 @@ const ICONS = {
   game: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M7.5 8h9a5 5 0 015 5v0a5 5 0 01-5 5H7.5a5 5 0 01-5-5v0a5 5 0 015-5z"/><path d="M7 12v2M6 13h2"/><circle cx="16.5" cy="12.5" r="0.6" fill="currentColor"/><circle cx="18.5" cy="14.5" r="0.6" fill="currentColor"/></svg>`,
   settings: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.5l1.2 2.6 2.8-.6.6 2.8 2.6 1.2-1.4 2.5 1.4 2.5-2.6 1.2-.6 2.8-2.8-.6L12 21.5l-1.2-2.6-2.8.6-.6-2.8-2.6-1.2 1.4-2.5-1.4-2.5 2.6-1.2.6-2.8 2.8.6z"/></svg>`,
 
+  power:   `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>`,
+
   play:    `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M8 5l12 7-12 7z"/></svg>`,
   list:    `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>`,
   folder:  `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>`,
@@ -157,12 +159,23 @@ const ICONS = {
   trophy:  `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M7 4h10v5a5 5 0 01-10 0z"/><path d="M7 6H4v1a3 3 0 003 3M17 6h3v1a3 3 0 01-3 3"/><path d="M10 15h4M9 20h6M12 15v5"/></svg>`,
   save:    `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M5 4h11l3 3v13a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z"/><path d="M8 4v5h7V4M8 20v-7h8v7"/></svg>`,
   rocket:  `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M14 4a8 8 0 014 4c0 3-2 6-6 8l-3-3c2-4 5-6 5-9z"/><path d="M9 13l-3 3M6 16l-2 4 4-2"/><circle cx="15" cy="7.5" r="1.3"/></svg>`,
+
+  exit:    `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M9 4H4a1 1 0 00-1 1v14a1 1 0 001 1h5"/><path d="M15 8l4 4-4 4M10 12h9"/></svg>`,
+  moon:    `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`,
 };
 
 /* ═════════════════════════════════════════
    Menu data
    ═════════════════════════════════════════ */
 const DATA = {
+  Power: {
+    icon: ICONS.power,
+    items: [
+      { label: 'Exit',      icon: 'exit',  action: 'quit'  },
+      { label: 'Sleep',     icon: 'moon',  action: 'sleep' },
+      { label: 'Power Off', icon: 'power', action: 'off'   },
+    ]
+  },
   Video: {
     icon: ICONS.video,
     items: [
@@ -268,7 +281,9 @@ const itemsEl  = document.getElementById('items');
 const viewport = document.getElementById('category-viewport');
 const pagerEl  = document.getElementById('pager');
 const cats     = Object.keys(DATA);
-let activeIdx  = 0;
+
+/* Start on Video even though Power is the first category. */
+let activeIdx = Math.max(0, cats.indexOf('Video'));
 
 const selectedItemIdx = {};
 cats.forEach(name => { selectedItemIdx[name] = 0; });
@@ -546,11 +561,36 @@ function activateSelectedItem() {
 
   playConfirmSound();
 
+  /* Power category items — Exit / Sleep / Power Off */
+  if (item.action) {
+    if (!window.electronAPI || !window.electronAPI.powerAction) {
+      showToast(`Would perform: ${item.label}`);
+      return;
+    }
+    window.electronAPI.powerAction(item.action).then((result) => {
+      if (result && result.ok) {
+        // Exit quits the app; sleep/off hand off to the OS. No toast.
+        return;
+      }
+      if (result && result.canceled) {
+        // User dismissed the confirmation dialog. Silent.
+        return;
+      }
+      showToast(`Failed: ${item.label}${result && result.error ? ' — ' + result.error : ''}`, 3000);
+    }).catch((err) => {
+      console.error('powerAction failed:', err);
+      showToast(`Failed: ${item.label}`, 3000);
+    });
+    return;
+  }
+
+  /* Directory picker row */
   if (item.id === 'directory') {
     handleDirectoryPick();
     return;
   }
 
+  /* A scanned video file — play it with the system default player */
   if (item.isVideoFile) {
     if (window.electronAPI && window.electronAPI.playVideo) {
       window.electronAPI.playVideo(item.path).then((result) => {

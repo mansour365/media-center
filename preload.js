@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   scanVideos:       (folder) => ipcRenderer.invoke('scan-videos', folder),
   playVideo:        (file)   => ipcRenderer.invoke('play-video', file),
   toggleFullscreen: ()       => ipcRenderer.invoke('toggle-fullscreen'),
+  powerAction:      (action) => ipcRenderer.invoke('power-action', action),
 
   onScanProgress: (cb) => {
     const listener = (_e, data) => cb(data);

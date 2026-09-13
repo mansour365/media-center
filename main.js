@@ -286,6 +286,74 @@ ipcMain.handle('play-video', async (_evt, filePath) => {
   return { ok: !err, error: err || null, player: 'default' };
 });
 
+/* ── IPC: power actions (quit, sleep, power off) ── */
+ipcMain.handle('power-action', async (_evt, action) => {
+  if (action === 'quit') {
+    // Give the renderer a tick to receive the reply before we exit.
+    setTimeout(() => app.quit(), 80);
+    return { ok: true };
+  }
+
+  // Confirm before anything destructive.
+  const labels = {
+    sleep: { verb: 'Sleep',   msg: 'Put the computer to sleep?' },
+    off:   { verb: 'Power Off', msg: 'Power off the computer?' },
+  };
+  const meta = labels[action];
+  if (!meta) return { ok: false, error: `Unknown action: ${action}` };
+
+  const confirm = await dialog.showMessageBox(mainWindow, {
+    type: 'question',
+    buttons: ['Cancel', meta.verb],
+    defaultId: 0,
+    cancelId: 0,
+    title: 'Confirm',
+    message: meta.msg,
+  });
+  if (confirm.response !== 1) return { ok: false, canceled: true };
+
+  const platform = process.platform;
+  let cmd, args;
+
+  if (action === 'sleep') {
+    if (platform === 'win32') {
+      cmd = 'rundll32.exe';
+      args = ['powrprof.dll,SetSuspendState', '0,1,0'];
+    } else if (platform === 'darwin') {
+      cmd = 'pmset';
+      args = ['sleepnow'];
+    } else {
+      cmd = 'systemctl';
+      args = ['suspend'];
+    }
+  } else { // 'off'
+    if (platform === 'win32') {
+      cmd = 'shutdown';
+      args = ['/s', '/t', '0'];
+    } else if (platform === 'darwin') {
+      cmd = 'osascript';
+      args = ['-e', 'tell app "System Events" to shut down'];
+    } else {
+      cmd = 'systemctl';
+      args = ['poweroff'];
+    }
+  }
+
+  return new Promise((resolve) => {
+    let proc;
+    try {
+      proc = spawn(cmd, args, { detached: true, stdio: 'ignore' });
+    } catch (err) {
+      return resolve({ ok: false, error: err.message });
+    }
+    proc.on('error', (err) => resolve({ ok: false, error: err.message }));
+    proc.on('spawn', () => {
+      proc.unref();
+      resolve({ ok: true });
+    });
+  });
+});
+
 /* ── IPC: toggle native fullscreen ── */
 ipcMain.handle('toggle-fullscreen', () => {
   if (!mainWindow) return false;
