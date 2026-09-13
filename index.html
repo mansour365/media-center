@@ -30,7 +30,6 @@
     pointer-events: none;
   }
 
-  /* ── Clock: time + date stacked ≈ 9% of viewport height ── */
   #clock {
     position: fixed;
     top: 3vh; right: 3vw;
@@ -39,16 +38,16 @@
     text-shadow: 0 2px 10px rgba(0,0,0,0.9);
   }
   #clock .time {
-    font-size: 6vh;
+    font-size: 4.0vh;
     line-height: 1.05;
     font-weight: 300;
     letter-spacing: 1px;
   }
   #clock .date {
-    font-size: 2.3vh;
+    font-size: 2.1vh;
     line-height: 1.05;
     color: #93a6b8;
-    margin-top: 0.4vh;
+    margin-top: 0.3vh;
     letter-spacing: 0.6px;
   }
 
@@ -160,6 +159,12 @@
   }
   @keyframes itemIn {
     to { opacity: 1; }
+  }
+  .item.near-bar {
+    padding: 34px 24px;
+  }
+  .item.selected.near-bar {
+    padding: 56px 24px 48px;
   }
   .item .item-icon {
     width: 56px; height: 56px;
@@ -545,7 +550,7 @@ let activeIdx  = 0;
 const selectedItemIdx = {};
 cats.forEach(name => { selectedItemIdx[name] = 0; });
 
-const ITEM_GAP_BELOW_BAR = 16;
+const SELECTED_ICON_GAP_FROM_LABEL = 50;
 const SELECTED_ITEM_MARGIN_TOP = 104;
 
 let itemsPositionY = 0;
@@ -561,13 +566,16 @@ function positionItems(animate = true) {
   const itemEl = itemsEl.children[sel];
   if (!itemEl) return;
 
+  const iconEl = itemEl.querySelector('.item-icon');
+  if (!iconEl) return;
+
   const activeCatEl = catRow.children[activeIdx];
   const labelEl = activeCatEl.querySelector('.cat-label');
   if (!labelEl) return;
 
   const barBottom = labelEl.getBoundingClientRect().bottom;
-  const itemTop = itemEl.getBoundingClientRect().top;
-  const delta = barBottom + ITEM_GAP_BELOW_BAR - itemTop;
+  const iconTop = iconEl.getBoundingClientRect().top;
+  const delta = barBottom + SELECTED_ICON_GAP_FROM_LABEL - iconTop;
   itemsPositionY += delta;
 
   if (animate) {
@@ -704,6 +712,8 @@ function updateItemSelection() {
   const sel = selectedItemIdx[cat] || 0;
   itemsEl.querySelectorAll('.item').forEach((el, i) => {
     el.classList.toggle('selected', i === sel);
+    const isNearBar = (i === sel) || (i === sel - 1 && sel > 0);
+    el.classList.toggle('near-bar', isNearBar);
     el.style.marginTop = (i === sel && sel > 0)
       ? SELECTED_ITEM_MARGIN_TOP + 'px'
       : '0px';
@@ -714,8 +724,9 @@ function renderItems(name) {
   const sel = selectedItemIdx[name] || 0;
   itemsEl.innerHTML = DATA[name].items.map((item, i) => {
     const marginTop = (i === sel && sel > 0) ? SELECTED_ITEM_MARGIN_TOP : 0;
+    const isNearBar = (i === sel) || (i === sel - 1 && sel > 0);
     return `
-      <div class="item${i === sel ? ' selected' : ''}"
+      <div class="item${i === sel ? ' selected' : ''}${isNearBar ? ' near-bar' : ''}"
            style="margin-top:${marginTop}px; animation-delay:${i * 30}ms">
         <div class="item-icon">${ICONS[item.icon] || ICONS.folder}</div>
         <div class="item-label">${item.label}</div>
