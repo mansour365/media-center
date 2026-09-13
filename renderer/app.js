@@ -124,9 +124,11 @@ function showToast(msg, ms = 2200) {
   toastEl.textContent = msg;
   toastEl.classList.add('visible');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    toastEl.classList.remove('visible');
-  }, ms);
+  if (ms > 0) {
+    toastTimer = setTimeout(() => {
+      toastEl.classList.remove('visible');
+    }, ms);
+  }
 }
 
 /* ═════════════════════════════════════════
@@ -227,6 +229,10 @@ const DATA = {
 /* Selected video folder + scanned videos */
 let selectedVideoFolder = null;
 let scannedVideos = [];
+let isScanning = false;
+
+/* Video path → thumbnail URL, survives rebuilds of DATA.Video.items */
+const thumbCache = new Map();
 
 /* ═════════════════════════════════════════
    Wind fields
@@ -283,7 +289,7 @@ function positionItems(animate = true) {
   const itemEl = itemsEl.children[sel];
   if (!itemEl) return;
 
-  const iconEl = itemEl.querySelector('.item-icon');
+  const iconEl = itemEl.querySelector('.item-icon, .item-thumb');
   if (!iconEl) return;
 
   const activeCatEl = catRow.children[activeIdx];
@@ -303,6 +309,13 @@ function positionItems(animate = true) {
     void itemsEl.offsetHeight;
     itemsEl.style.transition = '';
   }
+}
+
+/* Re-align after a thumbnail size transition settles. */
+let settleTimer = null;
+function schedulePositionSettle() {
+  clearTimeout(settleTimer);
+  settleTimer = setTimeout(() => positionItems(false), 500);
 }
 
 cats.forEach((name, i) => {
@@ -397,6 +410,7 @@ function nextItem() {
   selectedItemIdx[cat]++;
   updateItemSelection();
   positionItems(true);
+  schedulePositionSettle();
 }
 
 function prevItem() {
@@ -407,6 +421,7 @@ function prevItem() {
   selectedItemIdx[cat]--;
   updateItemSelection();
   positionItems(true);
+  schedulePositionSettle();
 }
 
 function bumpItemEdge(direction) {
@@ -456,29 +471,67 @@ async function pickVideoDirectory() {
 }
 
 async function handleDirectoryPick() {
-  const result = await pickVideoDirectory();
-  if (!result) return;
-
-  selectedVideoFolder = result;
-
-  const dirItem = DATA.Video.items.find(it => it.id === 'directory');
-  if (dirItem) {
-    dirItem.label = `Directory · ${result.name}`;
-  }
-  if (cats[activeIdx] === 'Video') {
-    renderItems('Video');
-    positionItems(false);
-  }
-
-  showToast(`Scanning ${result.name}\u2026`, 4000);
+  if (isScanning) return;
+  isScanning = true;
   try {
-    const files = await window.electronAPI.scanVideos(result.path);
+    const result = await pickVideoDirectory();
+    if (!result) return;
+
+    selectedVideoFolder = result;
+
+    showToast(`Scanning ${result.name}\u2026`, 0);
+
+    let files = [];
+    try {
+      files = await window.electronAPI.scanVideos(result.path);
+    } catch (err) {
+      console.error('scan-videos failed:', err);
+      showToast('Failed to scan folder', 3000);
+      return;
+    }
+
     scannedVideos = files || [];
+
+    const dirItem = DATA.Video.items.find(it => it.id === 'directory');
+    if (dirItem) {
+      dirItem.label = `Directory · ${result.name} (${scannedVideos.length})`;
+    }
+
+    const placeholders = DATA.Video.items.filter(it => !it.isVideoFile);
+
+    const videoItems = scannedVideos.map(v => ({
+      label: v.name,
+      icon: 'play',
+      isVideoFile: true,
+      path: v.path,
+      thumbUrl: v.thumbUrl || thumbCache.get(v.path) || null,
+    }));
+
+    const dirIndex = placeholders.findIndex(it => it.id === 'directory');
+    if (dirIndex >= 0) {
+      DATA.Video.items = [
+        ...placeholders.slice(0, dirIndex + 1),
+        ...videoItems,
+        ...placeholders.slice(dirIndex + 1),
+      ];
+    } else {
+      DATA.Video.items = [...placeholders, ...videoItems];
+    }
+
+    if (selectedItemIdx['Video'] >= DATA.Video.items.length) {
+      selectedItemIdx['Video'] = 0;
+    }
+
+    if (cats[activeIdx] === 'Video') {
+      renderItems('Video');
+      updateItemSelection();
+      positionItems(false);
+    }
+
     showToast(`Found ${scannedVideos.length} video${scannedVideos.length === 1 ? '' : 's'} in ${result.name}`, 3500);
     console.log('Scanned videos:', scannedVideos);
-  } catch (err) {
-    console.error('scan-videos failed:', err);
-    showToast('Failed to scan folder', 3000);
+  } finally {
+    isScanning = false;
   }
 }
 
@@ -498,7 +551,72 @@ function activateSelectedItem() {
     return;
   }
 
+  if (item.isVideoFile) {
+    if (window.electronAPI && window.electronAPI.playVideo) {
+      window.electronAPI.playVideo(item.path).then((result) => {
+        if (result && result.ok) {
+          const playerName = result.player === 'default'
+            ? 'default player'
+            : result.player.split(/[/\\]/).pop().replace(/\.exe$/i, '');
+          showToast(`Playing: ${item.label} (${playerName})`, 1800);
+        } else {
+          showToast(`Failed to play: ${item.label}`, 2500);
+        }
+      });
+    } else {
+      showToast(`Would play: ${item.label}`);
+    }
+    return;
+  }
+
   showToast(`${cat} · ${item.label}`);
+}
+
+/* ═════════════════════════════════════════
+   Item icon markup — thumbnail for videos, SVG otherwise
+   ═════════════════════════════════════════ */
+function iconMarkup(item) {
+  if (item.isVideoFile) {
+    if (item.thumbUrl) {
+      return `<div class="item-thumb"><img src="${item.thumbUrl}" alt="" draggable="false"></div>`;
+    }
+    return `<div class="item-thumb empty"><div class="thumb-fallback">${ICONS.play}</div></div>`;
+  }
+  return `<div class="item-icon">${ICONS[item.icon] || ICONS.folder}</div>`;
+}
+
+/* ═════════════════════════════════════════
+   Thumbnail patching (live updates from main process)
+   ═════════════════════════════════════════ */
+function patchItemThumb(videoPath, thumbUrl) {
+  thumbCache.set(videoPath, thumbUrl);
+
+  const idx = DATA.Video.items.findIndex(it => it.path === videoPath);
+  if (idx < 0) return;
+  DATA.Video.items[idx].thumbUrl = thumbUrl;
+
+  if (cats[activeIdx] !== 'Video') return;
+
+  const node = itemsEl.children[idx];
+  if (!node) return;
+
+  const thumb = node.querySelector('.item-thumb');
+  if (thumb && thumb.classList.contains('empty')) {
+    thumb.classList.remove('empty');
+    thumb.innerHTML = `<img src="${thumbUrl}" alt="" draggable="false">`;
+    schedulePositionSettle();
+  }
+}
+
+if (window.electronAPI && window.electronAPI.onScanProgress) {
+  window.electronAPI.onScanProgress(({ done, total, path, thumbUrl }) => {
+    if (thumbUrl && path) patchItemThumb(path, thumbUrl);
+    if (done < total) {
+      showToast(`Generating thumbnails\u2026 ${done}/${total}`, 0);
+    } else {
+      showToast('Thumbnails ready', 1600);
+    }
+  });
 }
 
 function renderItems(name) {
@@ -508,8 +626,8 @@ function renderItems(name) {
     const isNearBar = (i === sel) || (i === sel - 1 && sel > 0);
     return `
       <div class="item${i === sel ? ' selected' : ''}${isNearBar ? ' near-bar' : ''}"
-           style="margin-top:${marginTop}px; animation-delay:${i * 30}ms">
-        <div class="item-icon">${ICONS[item.icon] || ICONS.folder}</div>
+           style="margin-top:${marginTop}px; animation-delay:${Math.min(i, 12) * 30}ms">
+        ${iconMarkup(item)}
         <div class="item-label">${item.label}</div>
       </div>
     `;
@@ -530,6 +648,7 @@ function renderItems(name) {
       selectedItemIdx[cat] = i;
       updateItemSelection();
       positionItems(true);
+      schedulePositionSettle();
       activateSelectedItem();
     });
   });
