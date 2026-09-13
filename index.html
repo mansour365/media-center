@@ -297,7 +297,7 @@
 </div>
 
 <div id="pager"></div>
-<div id="hint">Scroll or ↑ ↓ to navigate items · ← → to switch categories</div>
+<div id="hint">Scroll or ↑ ↓ to navigate items · ← → to switch categories · Enter to select</div>
 
 <script>
 /* ═════════════════════════════════════════
@@ -451,7 +451,7 @@ const DATA = {
   Video: {
     icon: ICONS.video,
     items: [
-      { label: 'Movies',         icon: 'play'   },
+      { label: 'Directory',      icon: 'folder' },
       { label: 'TV Shows',       icon: 'list'   },
       { label: 'Playlists',      icon: 'folder' },
       { label: 'Streaming',      icon: 'globe'  },
@@ -720,6 +720,26 @@ function updateItemSelection() {
   });
 }
 
+/* Activate the currently-selected vertical item.
+   This is the shared action used by both:
+     - Enter on the keyboard
+     - Clicking the already-selected item with the mouse
+   In the future, this is where real playback / navigation
+   would kick off. */
+function activateSelectedItem() {
+  const cat = cats[activeIdx];
+  const sel = selectedItemIdx[cat] || 0;
+  const item = DATA[cat].items[sel];
+  if (!item) return;
+
+  playConfirmSound();
+
+  /* Hook here for real actions later, e.g.:
+     openDirectory(item.label);
+     launchMedia(item.label);
+     etc. */
+}
+
 function renderItems(name) {
   const sel = selectedItemIdx[name] || 0;
   itemsEl.innerHTML = DATA[name].items.map((item, i) => {
@@ -741,15 +761,17 @@ function renderItems(name) {
     el.addEventListener('click', () => {
       const cat = cats[activeIdx];
       if (selectedItemIdx[cat] === i) {
-        playConfirmSound();
+        /* Already-selected item: same action as Enter */
+        activateSelectedItem();
         return;
       }
+      /* Clicking a non-selected item: select it, then confirm */
       const direction = i > selectedItemIdx[cat] ? -1 : 1;
       applyWindImpulseY(direction);
       selectedItemIdx[cat] = i;
       updateItemSelection();
       positionItems(true);
-      playConfirmSound();
+      activateSelectedItem();
     });
   });
 }
@@ -776,6 +798,13 @@ const KEY_COOLDOWN_MS = 180;
 let lastKeyTime = 0;
 
 window.addEventListener('keydown', (e) => {
+  /* Enter → activate the currently-selected vertical item */
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    activateSelectedItem();
+    return;
+  }
+
   if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' &&
       e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
   e.preventDefault();
@@ -1077,10 +1106,8 @@ const SPARKLE_LIFE_MAX = 2.0;
 const WIND_Y_ELIGIBLE_FRACTION = 0.40;
 const WIND_Y_STRENGTH_MULT = 0.60;
 
-/* Fraction of sparkles that spawn outside the ribbon body.
-   Split evenly between above and below the ribbon. */
 const OUTSIDE_BAND_FRACTION = 0.30;
-const OUTSIDE_BAND_DIST = 55;   // max px outside the ribbon edge
+const OUTSIDE_BAND_DIST = 55;
 
 function spawnSparkle(t) {
   if (sparkles.length >= MAX_SPARKLES) return;
@@ -1093,13 +1120,10 @@ function spawnSparkle(t) {
   let y;
   const roll = Math.random();
   if (roll < OUTSIDE_BAND_FRACTION / 2) {
-    /* Above the ribbon — offset upward from the crest */
     y = topY - 6 - Math.random() * OUTSIDE_BAND_DIST;
   } else if (roll < OUTSIDE_BAND_FRACTION) {
-    /* Below the ribbon — offset downward from the bottom edge */
     y = topY + thick + 6 + Math.random() * OUTSIDE_BAND_DIST;
   } else {
-    /* Inside the ribbon (existing behavior) */
     const bias = Math.pow(Math.random(), 1.6);
     y = topY + bias * thick * 0.55;
   }
