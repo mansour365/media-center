@@ -138,8 +138,8 @@ const ICONS = {
   video: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M10 9.5l5 2.5-5 2.5z" fill="currentColor" stroke="none"/></svg>`,
   music: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M9 17.5V6.5l10-2v11"/><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="15.5" r="2.5"/></svg>`,
   photos: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.8"/><path d="M4 17l5-5 4 4 3-3 4 4"/></svg>`,
-  game: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M7.5 8h9a5 5 0 015 5v0a5 5 0 01-5 5H7.5a5 5 0 01-5-5v0a5 5 0 015-5z"/><path d="M7 12v2M6 13h2"/><circle cx="16.5" cy="12.5" r="0.6" fill="currentColor"/><circle cx="18.5" cy="14.5" r="0.6" fill="currentColor"/></svg>`,
-  settings: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.5l1.2 2.6 2.8-.6.6 2.8 2.6 1.2-1.4 2.5 1.4 2.5-2.6 1.2-.6 2.8-2.8-.6L12 21.5l-1.2-2.6-2.8.6-.6-2.8-2.6-1.2 1.4-2.5-1.4-2.5 2.6-1.2.6-2.8 2.8.6z"/></svg>`,
+  game: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M7 7.5C5.5 7.5 4.2 8.8 3.9 10.5L2.9 16C2.6 18.2 3.8 20 5.5 20C6.4 20 7.2 19.5 7.7 18.6L9.2 16.4C9.7 15.5 10.5 15 11.4 15H12.6C13.5 15 14.3 15.5 14.8 16.4L16.3 18.6C16.8 19.5 17.6 20 18.5 20C20.2 20 21.4 18.2 21.1 16L20.1 10.5C19.8 8.8 18.5 7.5 17 7.5Z"/></svg>`,
+  settings: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M9.9 6.4 L10.2 2.7 L13.8 2.7 L14.1 6.4 L15.9 7.4 L19.2 5.8 L21.0 8.9 L17.9 11.0 L17.9 13.0 L21.0 15.1 L19.2 18.2 L15.9 16.6 L14.1 17.6 L13.8 21.3 L10.2 21.3 L9.9 17.6 L8.1 16.6 L4.8 18.2 L3.0 15.1 L6.1 13.0 L6.1 11.0 L3.0 8.9 L4.8 5.8 L8.1 7.4 Z"/><circle cx="12" cy="12" r="2.8"/></svg>`,
 
   power:   `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>`,
 
@@ -155,7 +155,7 @@ const ICONS = {
   speaker: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 8a5 5 0 010 8"/></svg>`,
   network: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 10a14 14 0 0118 0M6 13.5a9 9 0 0112 0M9 17a4 4 0 016 0"/><circle cx="12" cy="20" r="0.9" fill="currentColor"/></svg>`,
   system:  `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h6M7 12h10M7 16h8"/></svg>`,
-  gamepad: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M7.5 8h9a5 5 0 015 5v0a5 5 0 01-5 5H7.5a5 5 0 01-5-5v0a5 5 0 015-5z"/><path d="M7 12v2M6 13h2"/><circle cx="16.5" cy="12.5" r="0.6" fill="currentColor"/><circle cx="18.5" cy="14.5" r="0.6" fill="currentColor"/></svg>`,
+  gamepad: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M7 7.5C5.5 7.5 4.2 8.8 3.9 10.5L2.9 16C2.6 18.2 3.8 20 5.5 20C6.4 20 7.2 19.5 7.7 18.6L9.2 16.4C9.7 15.5 10.5 15 11.4 15H12.6C13.5 15 14.3 15.5 14.8 16.4L16.3 18.6C16.8 19.5 17.6 20 18.5 20C20.2 20 21.4 18.2 21.1 16L20.1 10.5C19.8 8.8 18.5 7.5 17 7.5Z"/></svg>`,
   trophy:  `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M7 4h10v5a5 5 0 01-10 0z"/><path d="M7 6H4v1a3 3 0 003 3M17 6h3v1a3 3 0 01-3 3"/><path d="M10 15h4M9 20h6M12 15v5"/></svg>`,
   save:    `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M5 4h11l3 3v13a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z"/><path d="M8 4v5h7V4M8 20v-7h8v7"/></svg>`,
   rocket:  `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M14 4a8 8 0 014 4c0 3-2 6-6 8l-3-3c2-4 5-6 5-9z"/><path d="M9 13l-3 3M6 16l-2 4 4-2"/><circle cx="15" cy="7.5" r="1.3"/></svg>`,
@@ -736,7 +736,7 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === 'ArrowRight') next();
 });
 
-/* Esc toggles native fullscreen via Electron */
+/* Special keys: Esc fullscreen, H sparkles, J ribbons */
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     e.preventDefault();
@@ -745,6 +745,22 @@ window.addEventListener('keydown', (e) => {
     } else {
       console.warn('Escape pressed but electronAPI.toggleFullscreen is missing');
     }
+    return;
+  }
+
+  if (e.key === 'h' || e.key === 'H') {
+    e.preventDefault();
+    sparklesEnabled = !sparklesEnabled;
+    playConfirmSound();
+    showToast(`Sparkles ${sparklesEnabled ? 'on' : 'off'}`, 1400);
+    return;
+  }
+
+  if (e.key === 'j' || e.key === 'J') {
+    e.preventDefault();
+    ribbonsEnabled = !ribbonsEnabled;
+    playConfirmSound();
+    showToast(`Ribbons ${ribbonsEnabled ? 'on' : 'off'}`, 1400);
   }
 });
 
@@ -1038,6 +1054,16 @@ const WIND_Y_STRENGTH_MULT = 0.60;
 const OUTSIDE_BAND_FRACTION = 0.30;
 const OUTSIDE_BAND_DIST = 55;
 
+/* H toggles sparkles. When off, no new sparkles spawn — existing ones
+   finish their life so the field fades out naturally. */
+let sparklesEnabled = true;
+
+/* J toggles ribbons. Because ribbons are redrawn from scratch each
+   frame, we fade them via an opacity multiplier instead. */
+let ribbonsEnabled = true;
+let ribbonOpacity = 1;
+const RIBBON_FADE_SPEED = 2.5; // opacity units per second
+
 function spawnSparkle(t) {
   if (sparkles.length >= MAX_SPARKLES) return;
 
@@ -1121,6 +1147,17 @@ function draw(now) {
   const windStepX = windX * dt;
   const windStepY = windY * dt;
 
+  /* Ease ribbon opacity toward its target. */
+  const targetOpacity = ribbonsEnabled ? 1 : 0;
+  if (ribbonOpacity !== targetOpacity) {
+    const step = RIBBON_FADE_SPEED * dt;
+    if (ribbonOpacity < targetOpacity) {
+      ribbonOpacity = Math.min(targetOpacity, ribbonOpacity + step);
+    } else {
+      ribbonOpacity = Math.max(targetOpacity, ribbonOpacity - step);
+    }
+  }
+
   const bg = ctx.createLinearGradient(0, 0, 0, H);
   bg.addColorStop(0,    '#02050c');
   bg.addColorStop(0.45, '#05101f');
@@ -1130,118 +1167,130 @@ function draw(now) {
 
   const STEP = 2;
 
-  WAVES.forEach((w, wi) => {
-    const sprite = ribbonSprites[wi];
-    if (!sprite) return;
+  if (ribbonOpacity > 0.001) {
+    ctx.globalAlpha = ribbonOpacity;
 
-    const foldBase = 1 - w.foldAmp;
-    for (let x = 0; x < W; x += STEP) {
-      const topY = waveY(w, x, t);
-      const fold = foldBase + w.foldAmp * (
-        0.5 + 0.5 * Math.sin(x * w.foldFreq + t * w.foldSpeed + wi * 1.7)
-      );
-      const thickMult = thicknessMult(w, x, t);
-      ctx.globalAlpha = fold;
-      ctx.drawImage(sprite, x, topY, STEP, w.thickness * thickMult);
-    }
-    ctx.globalAlpha = 1;
+    WAVES.forEach((w, wi) => {
+      const sprite = ribbonSprites[wi];
+      if (!sprite) return;
 
-    const glowGrad = buildGlowGradient(w, t);
-    ctx.beginPath();
-    for (let x = 0; x <= W + STEP; x += STEP) {
-      const y = waveY(w, x, t);
-      x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    }
-    ctx.strokeStyle = glowGrad;
-    ctx.lineWidth = 3;
-    ctx.shadowColor = 'rgba(110, 170, 230, 0.75)';
-    ctx.shadowBlur = w.glowBlur;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
+      const foldBase = 1 - w.foldAmp;
+      for (let x = 0; x < W; x += STEP) {
+        const topY = waveY(w, x, t);
+        const fold = foldBase + w.foldAmp * (
+          0.5 + 0.5 * Math.sin(x * w.foldFreq + t * w.foldSpeed + wi * 1.7)
+        );
+        const thickMult = thicknessMult(w, x, t);
+        ctx.globalAlpha = fold * ribbonOpacity;
+        ctx.drawImage(sprite, x, topY, STEP, w.thickness * thickMult);
+      }
+      ctx.globalAlpha = ribbonOpacity;
 
-    const highlightGrad = buildHighlightGradient(w, t);
-    ctx.beginPath();
-    for (let x = 0; x <= W + STEP; x += STEP) {
-      const y = waveY(w, x, t);
-      x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    }
-    ctx.strokeStyle = highlightGrad;
-    ctx.lineWidth = w.edgeW;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-
-    const specGrad = ctx.createLinearGradient(0, 0, W, 0);
-    const N = 64;
-    for (let i = 0; i <= N; i++) {
-      const x = (i / N) * W;
-      const bright = highlightIntensity(w, x, t);
-      const transmit = 1 - Math.pow(bright, 0.85);
-      const a = transmit * bright * 0.30;
-      specGrad.addColorStop(i / N,
-        `rgba(210, 235, 255, ${a.toFixed(3)})`);
-    }
-    ctx.beginPath();
-    for (let x = 0; x <= W + STEP; x += STEP) {
-      const y = waveY(w, x, t) + 1.6;
-      x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    }
-    ctx.strokeStyle = specGrad;
-    ctx.lineWidth = 0.5;
-    ctx.stroke();
-  });
-
-  const expected = SPAWN_RATE * dt;
-  let n = Math.floor(expected);
-  if (Math.random() < expected - n) n++;
-  for (let i = 0; i < n; i++) spawnSparkle(t);
-
-  ctx.globalCompositeOperation = 'lighter';
-
-  for (let i = sparkles.length - 1; i >= 0; i--) {
-    const p = sparkles[i];
-    p.life += dt;
-
-    if (p.life >= p.maxLife) {
-      sparkles.splice(i, 1);
-      continue;
-    }
-
-    p.x += p.vx * dt + windStepX * p.windResponseX;
-    p.y += p.vy * dt + windStepY * p.windResponseY;
-
-    const lifeT = p.life / p.maxLife;
-    const fade = lifeT < 0.15
-      ? lifeT / 0.15
-      : Math.pow(1 - (lifeT - 0.15) / 0.85, 1.4);
-
-    const flicker = 1 - p.flickerAmt
-      + p.flickerAmt * (0.5 + 0.5 * Math.sin(t * p.flickerSpeed + p.flickerPhase));
-
-    const alpha = Math.max(0, Math.min(1, fade * flicker * p.baseAlpha));
-
-    const drawSize = p.size * 8;
-
-    ctx.globalAlpha = alpha;
-    ctx.drawImage(
-      SPARKLE_SPRITES[p.spriteIdx],
-      p.x - drawSize / 2,
-      p.y - drawSize / 2,
-      drawSize, drawSize
-    );
-
-    const coreStrength = Math.max(0, 1 - p.focus / 0.7);
-    if (coreStrength > 0) {
-      const coreR = Math.max(0.7, drawSize * 0.060);
-      ctx.globalAlpha = Math.min(1, alpha * 1.5 * coreStrength);
+      const glowGrad = buildGlowGradient(w, t);
       ctx.beginPath();
-      ctx.arc(p.x, p.y, coreR, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255, 255, 255, 1)';
-      ctx.fill();
-    }
+      for (let x = 0; x <= W + STEP; x += STEP) {
+        const y = waveY(w, x, t);
+        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = glowGrad;
+      ctx.lineWidth = 3;
+      ctx.shadowColor = 'rgba(110, 170, 230, 0.75)';
+      ctx.shadowBlur = w.glowBlur;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      const highlightGrad = buildHighlightGradient(w, t);
+      ctx.beginPath();
+      for (let x = 0; x <= W + STEP; x += STEP) {
+        const y = waveY(w, x, t);
+        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = highlightGrad;
+      ctx.lineWidth = w.edgeW;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      const specGrad = ctx.createLinearGradient(0, 0, W, 0);
+      const N = 64;
+      for (let i = 0; i <= N; i++) {
+        const x = (i / N) * W;
+        const bright = highlightIntensity(w, x, t);
+        const transmit = 1 - Math.pow(bright, 0.85);
+        const a = transmit * bright * 0.30;
+        specGrad.addColorStop(i / N,
+          `rgba(210, 235, 255, ${a.toFixed(3)})`);
+      }
+      ctx.beginPath();
+      for (let x = 0; x <= W + STEP; x += STEP) {
+        const y = waveY(w, x, t) + 1.6;
+        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = specGrad;
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    });
+
+    ctx.globalAlpha = 1;
   }
 
-  ctx.globalAlpha = 1;
-  ctx.globalCompositeOperation = 'source-over';
+  /* Only spawn sparkles when enabled. Existing sparkles keep
+     updating and expiring below, so the field fades out over ~2s. */
+  if (sparklesEnabled) {
+    const expected = SPAWN_RATE * dt;
+    let n = Math.floor(expected);
+    if (Math.random() < expected - n) n++;
+    for (let i = 0; i < n; i++) spawnSparkle(t);
+  }
+
+  if (sparkles.length > 0) {
+    ctx.globalCompositeOperation = 'lighter';
+
+    for (let i = sparkles.length - 1; i >= 0; i--) {
+      const p = sparkles[i];
+      p.life += dt;
+
+      if (p.life >= p.maxLife) {
+        sparkles.splice(i, 1);
+        continue;
+      }
+
+      p.x += p.vx * dt + windStepX * p.windResponseX;
+      p.y += p.vy * dt + windStepY * p.windResponseY;
+
+      const lifeT = p.life / p.maxLife;
+      const fade = lifeT < 0.15
+        ? lifeT / 0.15
+        : Math.pow(1 - (lifeT - 0.15) / 0.85, 1.4);
+
+      const flicker = 1 - p.flickerAmt
+        + p.flickerAmt * (0.5 + 0.5 * Math.sin(t * p.flickerSpeed + p.flickerPhase));
+
+      const alpha = Math.max(0, Math.min(1, fade * flicker * p.baseAlpha));
+
+      const drawSize = p.size * 8;
+
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(
+        SPARKLE_SPRITES[p.spriteIdx],
+        p.x - drawSize / 2,
+        p.y - drawSize / 2,
+        drawSize, drawSize
+      );
+
+      const coreStrength = Math.max(0, 1 - p.focus / 0.7);
+      if (coreStrength > 0) {
+        const coreR = Math.max(0.7, drawSize * 0.060);
+        ctx.globalAlpha = Math.min(1, alpha * 1.5 * coreStrength);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, coreR, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 1)';
+        ctx.fill();
+      }
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
 
   requestAnimationFrame(draw);
 }
