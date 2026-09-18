@@ -280,7 +280,12 @@ const catRow   = document.getElementById('category-row');
 const itemsEl  = document.getElementById('items');
 const viewport = document.getElementById('category-viewport');
 const pagerEl  = document.getElementById('pager');
+const activeZoneEl = document.getElementById('active-zone');
+const categoryZoneEl = document.getElementById('category-zone');
 const cats     = Object.keys(DATA);
+
+/* One flag controls every debug overlay. Z toggles them together. */
+let debugZonesVisible = true;
 
 /* Start on Video even though Power is the first category. */
 let activeIdx = Math.max(0, cats.indexOf('Video'));
@@ -288,8 +293,15 @@ let activeIdx = Math.max(0, cats.indexOf('Video'));
 const selectedItemIdx = {};
 cats.forEach(name => { selectedItemIdx[name] = 0; });
 
-const SELECTED_ICON_GAP_FROM_LABEL = 50;
-const SELECTED_ITEM_MARGIN_TOP = 104;
+/* ── Active-zone geometry ─────────────────────────────────────────
+   ACTIVE_ZONE_HEIGHT must match #active-zone's CSS height.
+   ZONE_TOP_GAP is the distance from the active category's label
+   baseline to the top of the zone. 0 means the green zone touches
+   the bottom edge of the red category zone.
+   ITEM_FLEX_GAP must match the `gap` on #items in the CSS. */
+const ACTIVE_ZONE_HEIGHT = 260;
+const ZONE_TOP_GAP       = 0;
+const ITEM_FLEX_GAP      = 8;
 
 let itemsPositionY = 0;
 let itemsBumpY = 0;
@@ -298,23 +310,35 @@ function applyItemsTransform() {
   itemsEl.style.transform = `translateY(${itemsPositionY + itemsBumpY}px)`;
 }
 
+/* Layout pass: place the selected item dead-center in the active zone
+   and push its two neighbours fully outside it. Called on nav, resize,
+   and after a thumbnail transition settles. */
 function positionItems(animate = true) {
   const cat = cats[activeIdx];
   const sel = selectedItemIdx[cat] || 0;
   const itemEl = itemsEl.children[sel];
   if (!itemEl) return;
 
-  const iconEl = itemEl.querySelector('.item-icon, .item-thumb');
-  if (!iconEl) return;
-
   const activeCatEl = catRow.children[activeIdx];
+  if (!activeCatEl) return;
   const labelEl = activeCatEl.querySelector('.cat-label');
   if (!labelEl) return;
 
-  const barBottom = labelEl.getBoundingClientRect().bottom;
-  const iconTop = iconEl.getBoundingClientRect().top;
-  const delta = barBottom + SELECTED_ICON_GAP_FROM_LABEL - iconTop;
-  itemsPositionY += delta;
+  const selHeight = itemEl.offsetHeight;
+  const slack = (ACTIVE_ZONE_HEIGHT - selHeight) / 2;
+  const neighborMargin = Math.max(0, slack - ITEM_FLEX_GAP);
+
+  for (let i = 0; i < itemsEl.children.length; i++) {
+    const el = itemsEl.children[i];
+    el.style.marginTop    = (i === sel + 1 && neighborMargin > 0) ? neighborMargin + 'px' : '';
+    el.style.marginBottom = (i === sel - 1 && neighborMargin > 0) ? neighborMargin + 'px' : '';
+  }
+
+  void itemsEl.offsetHeight;
+
+  const zoneTop    = labelEl.getBoundingClientRect().bottom + ZONE_TOP_GAP;
+  const zoneCenter = zoneTop + ACTIVE_ZONE_HEIGHT / 2;
+  itemsPositionY   = zoneCenter - itemEl.offsetTop - selHeight / 2;
 
   if (animate) {
     applyItemsTransform();
@@ -324,6 +348,20 @@ function positionItems(animate = true) {
     void itemsEl.offsetHeight;
     itemsEl.style.transition = '';
   }
+
+  updateActiveZone();
+}
+
+/* Position the debug overlay at the top of the active zone. */
+function updateActiveZone() {
+  if (!debugZonesVisible || !activeZoneEl) return;
+  const activeCatEl = catRow.children[activeIdx];
+  if (!activeCatEl) return;
+  const labelEl = activeCatEl.querySelector('.cat-label');
+  if (!labelEl) return;
+
+  const top = labelEl.getBoundingClientRect().bottom + ZONE_TOP_GAP;
+  activeZoneEl.style.top = top + 'px';
 }
 
 /* Re-align after a thumbnail size transition settles. */
@@ -364,6 +402,7 @@ function goTo(idx) {
   renderItems(cats[activeIdx]);
   centerActive();
   positionItems(false);
+  updateActiveZone();
 }
 
 function next() {
@@ -468,6 +507,7 @@ function bumpItemEdge(direction) {
   }, 120);
 }
 
+/* Class-only pass: never touches margins (positionItems owns those). */
 function updateItemSelection() {
   const cat = cats[activeIdx];
   const sel = selectedItemIdx[cat] || 0;
@@ -475,9 +515,6 @@ function updateItemSelection() {
     el.classList.toggle('selected', i === sel);
     const isNearBar = (i === sel) || (i === sel - 1 && sel > 0);
     el.classList.toggle('near-bar', isNearBar);
-    el.style.marginTop = (i === sel && sel > 0)
-      ? SELECTED_ITEM_MARGIN_TOP + 'px'
-      : '0px';
   });
 }
 
@@ -577,14 +614,8 @@ function activateSelectedItem() {
       return;
     }
     window.electronAPI.powerAction(item.action).then((result) => {
-      if (result && result.ok) {
-        // Exit quits the app; sleep/off hand off to the OS. No toast.
-        return;
-      }
-      if (result && result.canceled) {
-        // User dismissed the confirmation dialog. Silent.
-        return;
-      }
+      if (result && result.ok) return;
+      if (result && result.canceled) return;
       showToast(`Failed: ${item.label}${result && result.error ? ' — ' + result.error : ''}`, 3000);
     }).catch((err) => {
       console.error('powerAction failed:', err);
@@ -622,8 +653,7 @@ function activateSelectedItem() {
 }
 
 /* ═════════════════════════════════════════
-   HTML escaping — filenames and paths come from the filesystem,
-   so they must never be injected raw into innerHTML or src.
+   HTML escaping
    ═════════════════════════════════════════ */
 function escapeHtml(value) {
   return String(value)
@@ -635,7 +665,7 @@ function escapeHtml(value) {
 }
 
 /* ═════════════════════════════════════════
-   Item icon markup — thumbnail for videos, SVG otherwise
+   Item icon markup
    ═════════════════════════════════════════ */
 function iconMarkup(item) {
   if (item.isVideoFile) {
@@ -687,14 +717,14 @@ if (window.electronAPI && window.electronAPI.onScanProgress) {
   });
 }
 
+/* Margins are owned by positionItems(), not here. */
 function renderItems(name) {
   const sel = selectedItemIdx[name] || 0;
   itemsEl.innerHTML = DATA[name].items.map((item, i) => {
-    const marginTop = (i === sel && sel > 0) ? SELECTED_ITEM_MARGIN_TOP : 0;
     const isNearBar = (i === sel) || (i === sel - 1 && sel > 0);
     return `
       <div class="item${i === sel ? ' selected' : ''}${isNearBar ? ' near-bar' : ''}"
-           style="margin-top:${marginTop}px; animation-delay:${Math.min(i, 12) * 30}ms">
+           style="animation-delay:${Math.min(i, 12) * 30}ms">
         ${iconMarkup(item)}
         <div class="item-label">${escapeHtml(item.label)}</div>
       </div>
@@ -765,7 +795,7 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === 'ArrowRight') next();
 });
 
-/* Special keys: Esc fullscreen, H sparkles, J ribbons */
+/* Special keys: Esc fullscreen, H sparkles, J ribbons, Z debug zones */
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     e.preventDefault();
@@ -793,6 +823,18 @@ window.addEventListener('keydown', (e) => {
     ribbonsEnabled = !ribbonsEnabled;
     playConfirmSound();
     showToast(`Ribbons ${ribbonsEnabled ? 'on' : 'off'}`, 1400);
+    return;
+  }
+
+  if (e.key === 'z' || e.key === 'Z') {
+    e.preventDefault();
+    if (e.repeat) return;
+    debugZonesVisible = !debugZonesVisible;
+    activeZoneEl.classList.toggle('hidden', !debugZonesVisible);
+    categoryZoneEl.classList.toggle('hidden', !debugZonesVisible);
+    if (debugZonesVisible) updateActiveZone();
+    playConfirmSound();
+    showToast(`Debug zones ${debugZonesVisible ? 'on' : 'off'}`, 1400);
   }
 });
 
@@ -812,6 +854,7 @@ function init() {
   requestAnimationFrame(() => {
     centerActive();
     positionItems(false);
+    updateActiveZone();
   });
 }
 init();
@@ -819,6 +862,7 @@ init();
 window.addEventListener('resize', () => {
   centerActive();
   positionItems(false);
+  updateActiveZone();
 });
 
 /* ═════════════════════════════════════════
@@ -849,29 +893,21 @@ const ctx    = canvas.getContext('2d');
 
 let W = 0, H = 0, DPR = 1;
 
-/* Path-sampling resolution. The ribbon bodies, glow, highlight, and
-   specular passes all walk the same x range, so we sample waveY()
-   once per frame into a Float32Array and reuse it everywhere. */
 const PATH_STEP = 2;
 
 let pathSamples   = 0;
 let waveYArr      = [];
 let intensityArr  = [];
 
-/* Gradients are content-specific but change imperceptibly frame to
-   frame, so we rebuild them every N frames and reuse in between. */
 const GRADIENT_REBUILD_INTERVAL = 3;
 let gradFrameCounter  = 0;
 let cachedGradients   = null;
 
-/* Reduced stop counts — at HTPC viewing distance these are visually
-   indistinguishable from the previous 96/64/64 sampling. */
 const GRAD_SAMPLES_HIGHLIGHT = 32;
 const GRAD_SAMPLES_GLOW      = 24;
 const GRAD_SAMPLES_SPEC      = 24;
 
-/* Matches the finite-difference step used by the original waveSlope(). */
-const SLOPE_DX_INDICES = 3;  // 3 * PATH_STEP = 6px
+const SLOPE_DX_INDICES = 3;
 
 function resizeCanvas() {
   DPR = window.devicePixelRatio || 1;
@@ -883,7 +919,7 @@ function resizeCanvas() {
   canvas.style.height = H + 'px';
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   rebuildSprites();
-  cachedGradients = null;  // W changed, gradients must be rebuilt
+  cachedGradients = null;
 }
 
 const WAVES = [
@@ -1015,7 +1051,6 @@ function thicknessMult(w, x, t) {
   return 1 + w.thickAmp * (v1 * 0.65 + v2 * 0.35);
 }
 
-/* Grow the sample buffers when the viewport width changes. */
 function ensurePathBuffers() {
   const needed = Math.floor(W / PATH_STEP) + 2;
   if (pathSamples === needed && waveYArr.length === WAVES.length) return;
@@ -1024,10 +1059,8 @@ function ensurePathBuffers() {
   intensityArr = WAVES.map(() => new Float32Array(needed));
 }
 
-/* Sample index → x coordinate. */
 function sampleX(i) { return i * PATH_STEP; }
 
-/* Nearest precomputed-intensity sample for a normalized position. */
 function intensityAt(wi, fx) {
   const idx = Math.min(
     pathSamples - 1,
@@ -1140,15 +1173,11 @@ const WIND_Y_STRENGTH_MULT = 0.60;
 const OUTSIDE_BAND_FRACTION = 0.30;
 const OUTSIDE_BAND_DIST = 55;
 
-/* H toggles sparkles. When off, no new sparkles spawn — existing ones
-   finish their life so the field fades out naturally. */
 let sparklesEnabled = true;
 
-/* J toggles ribbons. Because ribbons are redrawn from scratch each
-   frame, we fade them via an opacity multiplier instead. */
 let ribbonsEnabled = true;
 let ribbonOpacity = 1;
-const RIBBON_FADE_SPEED = 2.5; // opacity units per second
+const RIBBON_FADE_SPEED = 2.5;
 
 function spawnSparkle(t) {
   if (sparkles.length >= MAX_SPARKLES) return;
@@ -1234,7 +1263,6 @@ function draw(now) {
   const windStepX = windX * dt;
   const windStepY = windY * dt;
 
-  /* Ease ribbon opacity toward its target. */
   const targetOpacity = ribbonsEnabled ? 1 : 0;
   if (ribbonOpacity !== targetOpacity) {
     const step = RIBBON_FADE_SPEED * dt;
@@ -1253,7 +1281,6 @@ function draw(now) {
   ctx.fillRect(0, 0, W, H);
 
   if (ribbonOpacity > 0.001) {
-    /* ── Phase 1: sample waveY() once per wave per frame ── */
     for (let wi = 0; wi < WAVES.length; wi++) {
       const w   = WAVES[wi];
       const arr = waveYArr[wi];
@@ -1263,7 +1290,6 @@ function draw(now) {
       }
     }
 
-    /* ── Phase 2: derive highlight intensity from the samples ── */
     for (let wi = 0; wi < WAVES.length; wi++) {
       const w     = WAVES[wi];
       const yArr  = waveYArr[wi];
@@ -1287,12 +1313,10 @@ function draw(now) {
       }
     }
 
-    /* ── Phase 3: rebuild gradients only every N frames ── */
     if (!cachedGradients || (gradFrameCounter++ % GRADIENT_REBUILD_INTERVAL) === 0) {
       ensureGradients();
     }
 
-    /* ── Phase 4: draw ribbons from the sampled arrays ── */
     ctx.globalAlpha = ribbonOpacity;
 
     WAVES.forEach((w, wi) => {
@@ -1302,7 +1326,6 @@ function draw(now) {
       const yArr  = waveYArr[wi];
       const grads = cachedGradients[wi];
 
-      /* Ribbon body — reuse yArr, no more waveY() here */
       const foldBase  = 1 - w.foldAmp;
       const bodyCount = Math.ceil(W / PATH_STEP);
       for (let i = 0; i < bodyCount; i++) {
@@ -1317,7 +1340,6 @@ function draw(now) {
       }
       ctx.globalAlpha = ribbonOpacity;
 
-      /* Glow */
       ctx.beginPath();
       for (let i = 0; i < pathSamples; i++) {
         const x = sampleX(i);
@@ -1331,7 +1353,6 @@ function draw(now) {
       ctx.stroke();
       ctx.shadowBlur = 0;
 
-      /* Highlight edge */
       ctx.beginPath();
       for (let i = 0; i < pathSamples; i++) {
         const x = sampleX(i);
@@ -1343,7 +1364,6 @@ function draw(now) {
       ctx.lineCap = 'round';
       ctx.stroke();
 
-      /* Specular sheen */
       ctx.beginPath();
       for (let i = 0; i < pathSamples; i++) {
         const x = sampleX(i);
@@ -1358,8 +1378,6 @@ function draw(now) {
     ctx.globalAlpha = 1;
   }
 
-  /* Only spawn sparkles when enabled. Existing sparkles keep
-     updating and expiring below, so the field fades out over ~2s. */
   if (sparklesEnabled) {
     const expected = SPAWN_RATE * dt;
     let n = Math.floor(expected);
