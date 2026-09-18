@@ -849,6 +849,30 @@ const ctx    = canvas.getContext('2d');
 
 let W = 0, H = 0, DPR = 1;
 
+/* Path-sampling resolution. The ribbon bodies, glow, highlight, and
+   specular passes all walk the same x range, so we sample waveY()
+   once per frame into a Float32Array and reuse it everywhere. */
+const PATH_STEP = 2;
+
+let pathSamples   = 0;
+let waveYArr      = [];
+let intensityArr  = [];
+
+/* Gradients are content-specific but change imperceptibly frame to
+   frame, so we rebuild them every N frames and reuse in between. */
+const GRADIENT_REBUILD_INTERVAL = 3;
+let gradFrameCounter  = 0;
+let cachedGradients   = null;
+
+/* Reduced stop counts — at HTPC viewing distance these are visually
+   indistinguishable from the previous 96/64/64 sampling. */
+const GRAD_SAMPLES_HIGHLIGHT = 32;
+const GRAD_SAMPLES_GLOW      = 24;
+const GRAD_SAMPLES_SPEC      = 24;
+
+/* Matches the finite-difference step used by the original waveSlope(). */
+const SLOPE_DX_INDICES = 3;  // 3 * PATH_STEP = 6px
+
 function resizeCanvas() {
   DPR = window.devicePixelRatio || 1;
   W = window.innerWidth;
@@ -859,6 +883,7 @@ function resizeCanvas() {
   canvas.style.height = H + 'px';
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   rebuildSprites();
+  cachedGradients = null;  // W changed, gradients must be rebuilt
 }
 
 const WAVES = [
@@ -990,47 +1015,76 @@ function thicknessMult(w, x, t) {
   return 1 + w.thickAmp * (v1 * 0.65 + v2 * 0.35);
 }
 
-function waveSlope(w, x, t) {
-  const dx = 6;
-  return (waveY(w, x + dx, t) - waveY(w, x - dx, t)) / (2 * dx);
+/* Grow the sample buffers when the viewport width changes. */
+function ensurePathBuffers() {
+  const needed = Math.floor(W / PATH_STEP) + 2;
+  if (pathSamples === needed && waveYArr.length === WAVES.length) return;
+  pathSamples  = needed;
+  waveYArr     = WAVES.map(() => new Float32Array(needed));
+  intensityArr = WAVES.map(() => new Float32Array(needed));
 }
 
-function highlightIntensity(w, x, t) {
-  const slope = Math.abs(waveSlope(w, x, t));
-  const sn = Math.min(1, slope / w.slopeRef);
-  const slopeTerm = Math.pow(sn, 1.25);
+/* Sample index → x coordinate. */
+function sampleX(i) { return i * PATH_STEP; }
 
-  const sweep = 0.5 + 0.5 * Math.sin(x * w.sweepFreq + t * w.sweepSpeed + w.sweepPhase);
-
-  return Math.min(1, slopeTerm * (0.30 + 0.85 * sweep));
+/* Nearest precomputed-intensity sample for a normalized position. */
+function intensityAt(wi, fx) {
+  const idx = Math.min(
+    pathSamples - 1,
+    Math.max(0, Math.round((fx * W) / PATH_STEP))
+  );
+  return intensityArr[wi][idx];
 }
 
-function buildHighlightGradient(w, t, N = 96) {
+function buildGlowGradient(wi) {
   const grad = ctx.createLinearGradient(0, 0, W, 0);
+  const N = GRAD_SAMPLES_GLOW;
   for (let i = 0; i <= N; i++) {
-    const x = (i / N) * W;
-    const bright = highlightIntensity(w, x, t);
-    const a = bright * 0.95;
-    const r = Math.round(60  + 165 * bright);
-    const g = Math.round(120 + 115 * bright);
-    const b = Math.round(190 +  60 * bright);
-    grad.addColorStop(i / N, `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`);
-  }
-  return grad;
-}
-
-function buildGlowGradient(w, t, N = 64) {
-  const grad = ctx.createLinearGradient(0, 0, W, 0);
-  for (let i = 0; i <= N; i++) {
-    const x = (i / N) * W;
-    const bright = highlightIntensity(w, x, t);
+    const fx = i / N;
+    const bright = intensityAt(wi, fx);
     const r = Math.round(60  + 50 * bright);
     const g = Math.round(110 + 60 * bright);
     const b = Math.round(170 + 55 * bright);
     const a = bright * 0.70;
-    grad.addColorStop(i / N, `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`);
+    grad.addColorStop(fx, `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`);
   }
   return grad;
+}
+
+function buildHighlightGradient(wi) {
+  const grad = ctx.createLinearGradient(0, 0, W, 0);
+  const N = GRAD_SAMPLES_HIGHLIGHT;
+  for (let i = 0; i <= N; i++) {
+    const fx = i / N;
+    const bright = intensityAt(wi, fx);
+    const a = bright * 0.95;
+    const r = Math.round(60  + 165 * bright);
+    const g = Math.round(120 + 115 * bright);
+    const b = Math.round(190 +  60 * bright);
+    grad.addColorStop(fx, `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`);
+  }
+  return grad;
+}
+
+function buildSpecGradient(wi) {
+  const grad = ctx.createLinearGradient(0, 0, W, 0);
+  const N = GRAD_SAMPLES_SPEC;
+  for (let i = 0; i <= N; i++) {
+    const fx = i / N;
+    const bright = intensityAt(wi, fx);
+    const transmit = 1 - Math.pow(bright, 0.85);
+    const a = transmit * bright * 0.30;
+    grad.addColorStop(fx, `rgba(210, 235, 255, ${a.toFixed(3)})`);
+  }
+  return grad;
+}
+
+function ensureGradients() {
+  cachedGradients = WAVES.map((_, wi) => ({
+    glow:      buildGlowGradient(wi),
+    highlight: buildHighlightGradient(wi),
+    spec:      buildSpecGradient(wi),
+  }));
 }
 
 /* ═════════════════════════════════════════
@@ -1173,6 +1227,7 @@ function draw(now) {
     rebuildSprites();
     spritesReady = true;
   }
+  ensurePathBuffers();
 
   windX *= Math.pow(WIND_DECAY_PER_SEC, dt);
   windY *= Math.pow(WIND_DECAY_PER_SEC, dt);
@@ -1197,67 +1252,105 @@ function draw(now) {
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
 
-  const STEP = 2;
-
   if (ribbonOpacity > 0.001) {
+    /* ── Phase 1: sample waveY() once per wave per frame ── */
+    for (let wi = 0; wi < WAVES.length; wi++) {
+      const w   = WAVES[wi];
+      const arr = waveYArr[wi];
+      let x = 0;
+      for (let i = 0; i < pathSamples; i++, x += PATH_STEP) {
+        arr[i] = waveY(w, x, t);
+      }
+    }
+
+    /* ── Phase 2: derive highlight intensity from the samples ── */
+    for (let wi = 0; wi < WAVES.length; wi++) {
+      const w     = WAVES[wi];
+      const yArr  = waveYArr[wi];
+      const iArr  = intensityArr[wi];
+      const last  = pathSamples - 1;
+      const denom = 2 * SLOPE_DX_INDICES * PATH_STEP;
+
+      for (let i = 0; i <= last; i++) {
+        const x    = sampleX(i);
+        const prev = yArr[i < SLOPE_DX_INDICES ? 0 : i - SLOPE_DX_INDICES];
+        const next = yArr[i > last - SLOPE_DX_INDICES ? last : i + SLOPE_DX_INDICES];
+
+        const slope = Math.abs(next - prev) / denom;
+        const sn    = Math.min(1, slope / w.slopeRef);
+        const slopeTerm = Math.pow(sn, 1.25);
+
+        const sweep = 0.5 + 0.5 *
+          Math.sin(x * w.sweepFreq + t * w.sweepSpeed + w.sweepPhase);
+
+        iArr[i] = Math.min(1, slopeTerm * (0.30 + 0.85 * sweep));
+      }
+    }
+
+    /* ── Phase 3: rebuild gradients only every N frames ── */
+    if (!cachedGradients || (gradFrameCounter++ % GRADIENT_REBUILD_INTERVAL) === 0) {
+      ensureGradients();
+    }
+
+    /* ── Phase 4: draw ribbons from the sampled arrays ── */
     ctx.globalAlpha = ribbonOpacity;
 
     WAVES.forEach((w, wi) => {
       const sprite = ribbonSprites[wi];
       if (!sprite) return;
 
-      const foldBase = 1 - w.foldAmp;
-      for (let x = 0; x < W; x += STEP) {
-        const topY = waveY(w, x, t);
-        const fold = foldBase + w.foldAmp * (
+      const yArr  = waveYArr[wi];
+      const grads = cachedGradients[wi];
+
+      /* Ribbon body — reuse yArr, no more waveY() here */
+      const foldBase  = 1 - w.foldAmp;
+      const bodyCount = Math.ceil(W / PATH_STEP);
+      for (let i = 0; i < bodyCount; i++) {
+        const x     = i * PATH_STEP;
+        const topY  = yArr[i];
+        const fold  = foldBase + w.foldAmp * (
           0.5 + 0.5 * Math.sin(x * w.foldFreq + t * w.foldSpeed + wi * 1.7)
         );
         const thickMult = thicknessMult(w, x, t);
         ctx.globalAlpha = fold * ribbonOpacity;
-        ctx.drawImage(sprite, x, topY, STEP, w.thickness * thickMult);
+        ctx.drawImage(sprite, x, topY, PATH_STEP, w.thickness * thickMult);
       }
       ctx.globalAlpha = ribbonOpacity;
 
-      const glowGrad = buildGlowGradient(w, t);
+      /* Glow */
       ctx.beginPath();
-      for (let x = 0; x <= W + STEP; x += STEP) {
-        const y = waveY(w, x, t);
-        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      for (let i = 0; i < pathSamples; i++) {
+        const x = sampleX(i);
+        const y = yArr[i];
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
       }
-      ctx.strokeStyle = glowGrad;
+      ctx.strokeStyle = grads.glow;
       ctx.lineWidth = 3;
       ctx.shadowColor = 'rgba(110, 170, 230, 0.75)';
       ctx.shadowBlur = w.glowBlur;
       ctx.stroke();
       ctx.shadowBlur = 0;
 
-      const highlightGrad = buildHighlightGradient(w, t);
+      /* Highlight edge */
       ctx.beginPath();
-      for (let x = 0; x <= W + STEP; x += STEP) {
-        const y = waveY(w, x, t);
-        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      for (let i = 0; i < pathSamples; i++) {
+        const x = sampleX(i);
+        const y = yArr[i];
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
       }
-      ctx.strokeStyle = highlightGrad;
+      ctx.strokeStyle = grads.highlight;
       ctx.lineWidth = w.edgeW;
       ctx.lineCap = 'round';
       ctx.stroke();
 
-      const specGrad = ctx.createLinearGradient(0, 0, W, 0);
-      const N = 64;
-      for (let i = 0; i <= N; i++) {
-        const x = (i / N) * W;
-        const bright = highlightIntensity(w, x, t);
-        const transmit = 1 - Math.pow(bright, 0.85);
-        const a = transmit * bright * 0.30;
-        specGrad.addColorStop(i / N,
-          `rgba(210, 235, 255, ${a.toFixed(3)})`);
-      }
+      /* Specular sheen */
       ctx.beginPath();
-      for (let x = 0; x <= W + STEP; x += STEP) {
-        const y = waveY(w, x, t) + 1.6;
-        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      for (let i = 0; i < pathSamples; i++) {
+        const x = sampleX(i);
+        const y = yArr[i] + 1.6;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
       }
-      ctx.strokeStyle = specGrad;
+      ctx.strokeStyle = grads.spec;
       ctx.lineWidth = 0.5;
       ctx.stroke();
     });
