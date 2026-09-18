@@ -380,6 +380,9 @@ function prev() {
   goTo(activeIdx - 1);
 }
 
+let catBumpTimeout = null;
+let catBumpCleanup = null;
+
 function bumpCategoryEdge(direction) {
   playEdgeSound();
   applyWindImpulseX(direction, WIND_BUMP_IMPULSE);
@@ -389,13 +392,17 @@ function bumpCategoryEdge(direction) {
   const baseX = match ? parseFloat(match[1]) : 0;
   const offset = direction * 18;
 
-  catRow.style.transition = 'transform 0.12s ease';
+  clearTimeout(catBumpTimeout);
+  clearTimeout(catBumpCleanup);
+
+  catRow.style.transition = 'transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1)';
   catRow.style.transform = `translateX(${baseX + offset}px)`;
 
-  setTimeout(() => {
-    catRow.style.transition = '';
+  catBumpTimeout = setTimeout(() => {
+    catRow.style.transition = 'transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)';
     centerActive();
-  }, 130);
+    catBumpCleanup = setTimeout(() => { catRow.style.transition = ''; }, 300);
+  }, 120);
 }
 
 function updateActive() {
@@ -439,19 +446,26 @@ function prevItem() {
   schedulePositionSettle();
 }
 
+let itemBumpTimeout = null;
+let itemBumpCleanup = null;
+
 function bumpItemEdge(direction) {
   playEdgeSound();
   applyWindImpulseY(direction, WIND_BUMP_IMPULSE);
 
+  clearTimeout(itemBumpTimeout);
+  clearTimeout(itemBumpCleanup);
+
   itemsBumpY = direction * 14;
-  itemsEl.style.transition = 'transform 0.12s ease';
+  itemsEl.style.transition = 'transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1)';
   applyItemsTransform();
 
-  setTimeout(() => {
-    itemsEl.style.transition = '';
+  itemBumpTimeout = setTimeout(() => {
+    itemsEl.style.transition = 'transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)';
     itemsBumpY = 0;
     applyItemsTransform();
-  }, 130);
+    itemBumpCleanup = setTimeout(() => { itemsEl.style.transition = ''; }, 300);
+  }, 120);
 }
 
 function updateItemSelection() {
@@ -474,19 +488,14 @@ async function pickVideoDirectory() {
   if (window.electronAPI && typeof window.electronAPI.pickDirectory === 'function') {
     return await window.electronAPI.pickDirectory();
   }
-  if (typeof window.showDirectoryPicker === 'function') {
-    try {
-      const handle = await window.showDirectoryPicker({ mode: 'read' });
-      return { name: handle.name, path: handle.name };
-    } catch (err) {
-      if (err && err.name === 'AbortError') return null;
-    }
-  }
   return null;
 }
 
 async function handleDirectoryPick() {
-  if (isScanning) return;
+  if (isScanning) {
+    showToast('Scan already in progress\u2026', 1600);
+    return;
+  }
   isScanning = true;
   try {
     const result = await pickVideoDirectory();
@@ -613,12 +622,25 @@ function activateSelectedItem() {
 }
 
 /* ═════════════════════════════════════════
+   HTML escaping — filenames and paths come from the filesystem,
+   so they must never be injected raw into innerHTML or src.
+   ═════════════════════════════════════════ */
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/* ═════════════════════════════════════════
    Item icon markup — thumbnail for videos, SVG otherwise
    ═════════════════════════════════════════ */
 function iconMarkup(item) {
   if (item.isVideoFile) {
     if (item.thumbUrl) {
-      return `<div class="item-thumb"><img src="${item.thumbUrl}" alt="" draggable="false"></div>`;
+      return `<div class="item-thumb"><img src="${escapeHtml(item.thumbUrl)}" alt="" draggable="false"></div>`;
     }
     return `<div class="item-thumb empty"><div class="thumb-fallback">${ICONS.play}</div></div>`;
   }
@@ -628,8 +650,14 @@ function iconMarkup(item) {
 /* ═════════════════════════════════════════
    Thumbnail patching (live updates from main process)
    ═════════════════════════════════════════ */
+const THUMB_CACHE_MAX = 512;
+
 function patchItemThumb(videoPath, thumbUrl) {
+  thumbCache.delete(videoPath);
   thumbCache.set(videoPath, thumbUrl);
+  if (thumbCache.size > THUMB_CACHE_MAX) {
+    thumbCache.delete(thumbCache.keys().next().value);
+  }
 
   const idx = DATA.Video.items.findIndex(it => it.path === videoPath);
   if (idx < 0) return;
@@ -643,7 +671,7 @@ function patchItemThumb(videoPath, thumbUrl) {
   const thumb = node.querySelector('.item-thumb');
   if (thumb && thumb.classList.contains('empty')) {
     thumb.classList.remove('empty');
-    thumb.innerHTML = `<img src="${thumbUrl}" alt="" draggable="false">`;
+    thumb.innerHTML = `<img src="${escapeHtml(thumbUrl)}" alt="" draggable="false">`;
     schedulePositionSettle();
   }
 }
@@ -668,7 +696,7 @@ function renderItems(name) {
       <div class="item${i === sel ? ' selected' : ''}${isNearBar ? ' near-bar' : ''}"
            style="margin-top:${marginTop}px; animation-delay:${Math.min(i, 12) * 30}ms">
         ${iconMarkup(item)}
-        <div class="item-label">${item.label}</div>
+        <div class="item-label">${escapeHtml(item.label)}</div>
       </div>
     `;
   }).join('');
@@ -718,6 +746,7 @@ let lastKeyTime = 0;
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
+    if (e.repeat) return;
     activateSelectedItem();
     return;
   }
@@ -740,6 +769,7 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     e.preventDefault();
+    if (e.repeat) return;
     if (window.electronAPI && window.electronAPI.toggleFullscreen) {
       window.electronAPI.toggleFullscreen();
     } else {
@@ -750,6 +780,7 @@ window.addEventListener('keydown', (e) => {
 
   if (e.key === 'h' || e.key === 'H') {
     e.preventDefault();
+    if (e.repeat) return;
     sparklesEnabled = !sparklesEnabled;
     playConfirmSound();
     showToast(`Sparkles ${sparklesEnabled ? 'on' : 'off'}`, 1400);
@@ -758,6 +789,7 @@ window.addEventListener('keydown', (e) => {
 
   if (e.key === 'j' || e.key === 'J') {
     e.preventDefault();
+    if (e.repeat) return;
     ribbonsEnabled = !ribbonsEnabled;
     playConfirmSound();
     showToast(`Ribbons ${ribbonsEnabled ? 'on' : 'off'}`, 1400);
