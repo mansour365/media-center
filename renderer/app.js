@@ -293,15 +293,20 @@ let activeIdx = Math.max(0, cats.indexOf('Video'));
 const selectedItemIdx = {};
 cats.forEach(name => { selectedItemIdx[name] = 0; });
 
-/* ── Active-zone geometry ─────────────────────────────────────────
-   ACTIVE_ZONE_HEIGHT must match #active-zone's CSS height.
+/* ── Layout geometry ──────────────────────────────────────────────
+   ACTIVE_ZONE_HEIGHT    matches #active-zone's CSS height.
+   CATEGORY_ZONE_HEIGHT  matches #category-zone's CSS height.
    ZONE_TOP_GAP is the distance from the active category's label
-   baseline to the top of the zone. 0 means the green zone touches
-   the bottom edge of the red category zone.
-   ITEM_FLEX_GAP must match the `gap` on #items in the CSS. */
-const ACTIVE_ZONE_HEIGHT = 260;
-const ZONE_TOP_GAP       = 0;
-const ITEM_FLEX_GAP      = 8;
+   baseline to the top of the active zone. 0 means the green zone
+   touches the bottom edge of the red category zone.
+   CLEARANCE_BUFFER is extra space above the category zone so the
+   neighbour above doesn't graze the fade or its own glow.
+   ITEM_FLEX_GAP matches the `gap` on #items in the CSS. */
+const ACTIVE_ZONE_HEIGHT   = 260;
+const CATEGORY_ZONE_HEIGHT = 86;
+const ZONE_TOP_GAP         = 0;
+const CLEARANCE_BUFFER     = 16;
+const ITEM_FLEX_GAP        = 8;
 
 let itemsPositionY = 0;
 let itemsBumpY = 0;
@@ -310,9 +315,12 @@ function applyItemsTransform() {
   itemsEl.style.transform = `translateY(${itemsPositionY + itemsBumpY}px)`;
 }
 
-/* Layout pass: place the selected item dead-center in the active zone
-   and push its two neighbours fully outside it. Called on nav, resize,
-   and after a thumbnail transition settles. */
+/* Layout pass. Two independent margins:
+     • item above (sel−1) must clear the category zone entirely
+     • item below (sel+1) only needs to clear the active zone
+   The asymmetric margins keep the item below tight against the
+   bottom of the green zone while the item above is pushed all the
+   way into the top strip. */
 function positionItems(animate = true) {
   const cat = cats[activeIdx];
   const sel = selectedItemIdx[cat] || 0;
@@ -326,12 +334,20 @@ function positionItems(animate = true) {
 
   const selHeight = itemEl.offsetHeight;
   const slack = (ACTIVE_ZONE_HEIGHT - selHeight) / 2;
-  const neighborMargin = Math.max(0, slack - ITEM_FLEX_GAP);
+
+  /* Item above: clear the category zone + buffer. */
+  const aboveMargin = Math.max(
+    0,
+    slack + CATEGORY_ZONE_HEIGHT + CLEARANCE_BUFFER - ITEM_FLEX_GAP
+  );
+
+  /* Item below: just clear the active zone. */
+  const belowMargin = Math.max(0, slack - ITEM_FLEX_GAP);
 
   for (let i = 0; i < itemsEl.children.length; i++) {
     const el = itemsEl.children[i];
-    el.style.marginTop    = (i === sel + 1 && neighborMargin > 0) ? neighborMargin + 'px' : '';
-    el.style.marginBottom = (i === sel - 1 && neighborMargin > 0) ? neighborMargin + 'px' : '';
+    el.style.marginTop    = (i === sel + 1 && belowMargin > 0) ? belowMargin + 'px' : '';
+    el.style.marginBottom = (i === sel - 1 && aboveMargin > 0) ? aboveMargin + 'px' : '';
   }
 
   void itemsEl.offsetHeight;
